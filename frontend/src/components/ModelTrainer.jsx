@@ -13,7 +13,9 @@ import "../App.css";
 function VideoCanvas({ webcamRef, canvasRef, camera }) {
   const videoWidth = 1280;
   const videoHeight = 720;
-  const [holisticResults, setHolisticResults] = useState({ faceLandmarks: [] });
+  const [holisticResults, setHolisticResults] = useState(null);
+  const sequence = useRef([]);
+  //console.log(sequence.current);
 
   const videoConstraints = {
     //width: videoWidth,
@@ -127,11 +129,51 @@ function VideoCanvas({ webcamRef, canvasRef, camera }) {
     }
   }, []);
 
-  console.log(holisticResults);
+  let faceLandmarks, poseLandmarks, leftHandLandmarks, rightHandLandmarks;
+
+  if (
+    holisticResults &&
+    (holisticResults.leftHandLandmarks || holisticResults.rightHandLandmarks) &&
+    sequence.current.length < 30
+  ) {
+    faceLandmarks = holisticResults.faceLandmarks
+      ? holisticResults.faceLandmarks.flatMap((res) => [res.x, res.y, res.z])
+      : Array(478 * 3).fill(0);
+    poseLandmarks = holisticResults.poseLandmarks
+      ? holisticResults.poseLandmarks.flatMap((res) => [
+          res.x,
+          res.y,
+          res.z,
+          res.visibility,
+        ])
+      : Array(33 * 4).fill(0);
+    leftHandLandmarks = holisticResults.leftHandLandmarks
+      ? holisticResults.leftHandLandmarks.flatMap((res) => [
+          res.x,
+          res.y,
+          res.z,
+        ])
+      : Array(21 * 3).fill(0);
+    rightHandLandmarks = holisticResults.rightHandLandmarks
+      ? holisticResults.rightHandLandmarks.flatMap((res) => [
+          res.x,
+          res.y,
+          res.z,
+        ])
+      : Array(21 * 3).fill(0);
+    const newDataSet = [
+      ...poseLandmarks,
+      ...faceLandmarks,
+      ...leftHandLandmarks,
+      ...rightHandLandmarks,
+    ];
+    sequence.current = [...sequence.current, newDataSet];
+    console.log(sequence.current);
+  }
 
   return (
     <>
-      {/*<div>{Object.values(holisticResults?.faceLandmarks).flat()}</div>*/}
+      <h3>Count: {sequence.current.length}</h3>
       <div style={{ postion: "relative" }}>
         <Webcam
           className="stream"
