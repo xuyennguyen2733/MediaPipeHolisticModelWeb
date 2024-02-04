@@ -1,0 +1,53 @@
+# Ignore Node.js related files and folders
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Ignore Vite build output
+/dist/
+
+# Ignore Python virtual environment
+venv/
+
+# Ignore IDE and editor-specific files
+.vscode/
+.idea/
+
+# Ignore compiled Python bytecode
+__pycache__/
+
+# Ignore environment-specific files
+.env
+.env.local
+
+# Ignore log files
+*.log
+
+# Ignore cache files
+.cache/
+
+# Ignore compiled JavaScript files for React
+/build/
+
+# Ignore compiled JavaScript files for Vite
+/.vite/
+
+# Ignore database files
+db.sqlite3
+
+# Ignore any local development configuration files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Ignore production build files
+/build/
+
+# Ignore local files that may be created by your editor
+*.swp
+
+# Ignore .DS_Store files on macOS
+.DS_Store
