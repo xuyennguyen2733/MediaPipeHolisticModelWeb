@@ -19,7 +19,6 @@ function VideoCanvas({ webcamRef, canvasRef, camera, trainLabel }) {
   const handDetected = useRef(false);
   const flashMode = useRef(false);
   const datasetCount = useRef(0);
-  //console.log(sequence.current);
 
   const videoConstraints = {
     width: videoWidth,
@@ -167,10 +166,7 @@ function VideoCanvas({ webcamRef, canvasRef, camera, trainLabel }) {
         width: 1280,
         height: 720,
       });
-
-      console.log("camera created");
       camera.start();
-      console.log("camera started");
     }
   }, []);
 
@@ -223,9 +219,8 @@ function VideoCanvas({ webcamRef, canvasRef, camera, trainLabel }) {
       if (sequence.current.length == 30) {
         if (flashMode.current) {
           toggleCollectButton();
-          sendData();
+          document.getElementById("send-data-btn").click();
         }
-        console.log(sequence.current);
       }
     });
   }
@@ -246,7 +241,11 @@ function VideoCanvas({ webcamRef, canvasRef, camera, trainLabel }) {
           <div>Frame Count: {sequence.current.length}</div>
         </h3>
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <button onClick={sendData} disabled={flashMode.current}>
+          <button
+            id="send-data-btn"
+            onClick={sendData}
+            disabled={flashMode.current}
+          >
             send
           </button>
           <button onClick={toggleCollectButton}>
