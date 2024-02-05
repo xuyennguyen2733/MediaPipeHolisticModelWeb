@@ -29,26 +29,26 @@ function VideoCanvas({ webcamRef, canvasRef, camera, trainLabel }) {
 
   const sendData = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/train", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          array: [
-            [1, 2, 3],
-            [2, 3, 5],
-          ],
-          label: trainLabel,
-          frameNumber: datasetCount.current,
-        }),
-      });
-      if (!response.ok) {
-        throw Error("api response not OK");
-      } else {
-        console.log("posted training data successfully");
-        datasetCount.current++;
+      for (let i = 0; i < 30; i++) {
+        const response = await fetch("http://127.0.0.1:8000/train", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            array: sequence.current[i],
+            label: trainLabel,
+            frameNumber: i,
+            setNumber: datasetCount.current,
+          }),
+        });
+        if (!response.ok) {
+          throw Error("api response not OK");
+        } else {
+          console.log("posted training data successfully");
+        }
       }
+      datasetCount.current++;
     } catch (error) {
       console.error("Error posting data:", error);
     }
