@@ -2,20 +2,30 @@ import json
 import numpy as np
 import traceback
 from pathlib import Path
-from backend.entities import TrainDataResponse
+from backend.entities import TrainDataResponse, TestDataResponse
 
 DATA_DIR = "backend/data"
+TEST_DATA_DIR = "backend/test_data"
 
 class InternalErrorException(Exception):
   def __init__(self, *, traceback_message):
     self.type = "internal_error"
     self.traceback = traceback_message
 
-def create_training_file(array_create) -> TrainDataResponse:
+def create_training_file(array_create) -> int:
   file_path = Path(f"{DATA_DIR}/{array_create.label}/{array_create.setNumber}")
   file_path.mkdir(parents=True, exist_ok=True)
   if (file_path.is_dir()):
     np.save(f"{file_path}/{array_create.frameNumber}.npy",np.array(array_create.array))
+    return len(array_create.array)
+  
+  raise InternalErrorException(traceback.print_exc())
+
+def create_testing_file(array_create) -> int:
+  file_path = Path(f"{TEST_DATA_DIR}/{array_create.label}/")
+  file_path.mkdir(parents=True, exist_ok=True)
+  if (file_path.is_dir()):
+    np.save(f"{file_path}/{array_create.label}.npy",np.array(array_create.array))
     return len(array_create.array)
   
   raise InternalErrorException(traceback.print_exc())

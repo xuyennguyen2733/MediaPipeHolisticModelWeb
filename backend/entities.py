@@ -12,3 +12,11 @@ class TrainDataInput(BaseModel):
   label: str
   frameNumber: int
   setNumber: int
+
+class TestDataInput(BaseModel):
+  array: list[float]
+  label: str
+
+class TestDataResponse(BaseModel):
+  label: str
+  length: int

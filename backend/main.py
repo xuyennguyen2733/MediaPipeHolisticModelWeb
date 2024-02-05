@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend import database as db
 from backend.database import InternalErrorException
-from backend.entities import (Dummy, TrainDataInput, TrainDataResponse)
+from backend.entities import (Dummy, TrainDataInput, TrainDataResponse, TestDataInput, TestDataResponse)
 
 app = FastAPI(
   title="ASL Model Trainer",
@@ -59,3 +59,9 @@ def get_dummy():
 )
 def create_training_data(array_create: TrainDataInput):
   return TrainDataResponse(length=db.create_training_file(array_create));
+
+@app.post(
+  "/test"
+)
+def create_testing_data(array_create: TestDataInput):
+  return TestDataResponse(label=array_create.label, length=db.create_testing_file(array_create))
