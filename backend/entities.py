@@ -8,6 +8,7 @@ class TrainDataResponse(BaseModel):
   length: int
 
 class TrainDataInput(BaseModel):
-  array: list[list[float]]
+  array: list[float]
   label: str
   frameNumber: int
+  setNumber: int

@@ -12,7 +12,7 @@ class InternalErrorException(Exception):
     self.traceback = traceback_message
 
 def create_training_file(array_create) -> TrainDataResponse:
-  file_path = Path(f"{DATA_DIR}/{array_create.label}/")
+  file_path = Path(f"{DATA_DIR}/{array_create.label}/{array_create.setNumber}")
   file_path.mkdir(parents=True, exist_ok=True)
   if (file_path.is_dir()):
     np.save(f"{file_path}/{array_create.frameNumber}.npy",np.array(array_create.array))
