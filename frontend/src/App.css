@@ -10,11 +10,11 @@
   justify-content: space-evenly;
 }
 .nav a {
+  width: 10rem;
   padding: 0px 20px;
 }
 
 .stream {
-  position: absolute;
   margin-left: auto;
   margin-right: auto;
   left: 0;

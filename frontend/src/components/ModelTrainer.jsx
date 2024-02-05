@@ -10,17 +10,60 @@ import {
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import "../App.css";
 
-function VideoCanvas({ webcamRef, canvasRef, camera }) {
+function VideoCanvas({ webcamRef, canvasRef, camera, trainLabel }) {
   const videoWidth = 1280;
   const videoHeight = 720;
   const [holisticResults, setHolisticResults] = useState(null);
   const sequence = useRef([]);
+  const collecting = useRef(false);
+  const handDetected = useRef(false);
+  const flashMode = useRef(false);
+  const datasetCount = useRef(0);
   //console.log(sequence.current);
 
   const videoConstraints = {
-    //width: videoWidth,
-    //height: videoHeight,
-    //aspectRatio: 16 / 9,
+    width: videoWidth,
+    height: videoHeight,
+    aspectRatio: 16 / 9,
+  };
+
+  const sendData = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:8000/train", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          array: [
+            [1, 2, 3],
+            [2, 3, 5],
+          ],
+          label: trainLabel,
+          frameNumber: datasetCount.current,
+        }),
+      });
+      if (!response.ok) {
+        throw Error("api response not OK");
+      } else {
+        console.log("posted training data successfully");
+        datasetCount.current++;
+      }
+    } catch (error) {
+      console.error("Error posting data:", error);
+    }
+  };
+
+  const toggleCollectButton = () => {
+    if (!collecting.current) {
+      collecting.current = true;
+    }
+    sequence.current = [];
+    handDetected.current = false;
+  };
+
+  const toggleFlashMode = () => {
+    flashMode.current = !flashMode.current;
   };
 
   const onResults = (results) => {
@@ -125,63 +168,109 @@ function VideoCanvas({ webcamRef, canvasRef, camera }) {
         height: 720,
       });
 
+      console.log("camera created");
       camera.start();
+      console.log("camera started");
     }
   }, []);
 
   let faceLandmarks, poseLandmarks, leftHandLandmarks, rightHandLandmarks;
 
+  if (!handDetected.current && collecting.current) {
+    handDetected.current =
+      holisticResults.leftHandLandmarks || holisticResults.rightHandLandmarks;
+  }
+
   if (
+    collecting.current &&
     holisticResults &&
-    (holisticResults.leftHandLandmarks || holisticResults.rightHandLandmarks) &&
+    handDetected.current &&
     sequence.current.length < 30
   ) {
-    faceLandmarks = holisticResults.faceLandmarks
-      ? holisticResults.faceLandmarks.flatMap((res) => [res.x, res.y, res.z])
-      : Array(478 * 3).fill(0);
-    poseLandmarks = holisticResults.poseLandmarks
-      ? holisticResults.poseLandmarks.flatMap((res) => [
-          res.x,
-          res.y,
-          res.z,
-          res.visibility,
-        ])
-      : Array(33 * 4).fill(0);
-    leftHandLandmarks = holisticResults.leftHandLandmarks
-      ? holisticResults.leftHandLandmarks.flatMap((res) => [
-          res.x,
-          res.y,
-          res.z,
-        ])
-      : Array(21 * 3).fill(0);
-    rightHandLandmarks = holisticResults.rightHandLandmarks
-      ? holisticResults.rightHandLandmarks.flatMap((res) => [
-          res.x,
-          res.y,
-          res.z,
-        ])
-      : Array(21 * 3).fill(0);
-    const newDataSet = [
-      ...poseLandmarks,
-      ...faceLandmarks,
-      ...leftHandLandmarks,
-      ...rightHandLandmarks,
-    ];
-    sequence.current = [...sequence.current, newDataSet];
-    console.log(sequence.current);
+    Promise.resolve().then(() => {
+      faceLandmarks = holisticResults.faceLandmarks
+        ? holisticResults.faceLandmarks.flatMap((res) => [res.x, res.y, res.z])
+        : Array(478 * 3).fill(0);
+      poseLandmarks = holisticResults.poseLandmarks
+        ? holisticResults.poseLandmarks.flatMap((res) => [
+            res.x,
+            res.y,
+            res.z,
+            res.visibility,
+          ])
+        : Array(33 * 4).fill(0);
+      leftHandLandmarks = holisticResults.leftHandLandmarks
+        ? holisticResults.leftHandLandmarks.flatMap((res) => [
+            res.x,
+            res.y,
+            res.z,
+          ])
+        : Array(21 * 3).fill(0);
+      rightHandLandmarks = holisticResults.rightHandLandmarks
+        ? holisticResults.rightHandLandmarks.flatMap((res) => [
+            res.x,
+            res.y,
+            res.z,
+          ])
+        : Array(21 * 3).fill(0);
+      const newDataSet = [
+        ...poseLandmarks,
+        ...faceLandmarks,
+        ...leftHandLandmarks,
+        ...rightHandLandmarks,
+      ];
+      sequence.current = [...sequence.current, newDataSet];
+      if (sequence.current.length == 30) {
+        if (flashMode.current) {
+          toggleCollectButton();
+          sendData();
+        }
+        console.log(sequence.current);
+      }
+    });
   }
 
   return (
     <>
-      <h3>Count: {sequence.current.length}</h3>
-      <div style={{ postion: "relative" }}>
+      <div
+        style={{
+          position: "absolute",
+          display: "flex",
+          justifyContent: "space-between",
+          width: videoWidth,
+        }}
+      >
+        <h3>
+          <div>Training for sign: {trainLabel}</div>
+          <div>Number Dataset Sent: {datasetCount.current}</div>
+          <div>Frame Count: {sequence.current.length}</div>
+        </h3>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <button onClick={sendData} disabled={flashMode.current}>
+            send
+          </button>
+          <button onClick={toggleCollectButton}>
+            {collecting.current ? "restart collect data" : "collect data"}
+          </button>
+          <button onClick={toggleFlashMode}>
+            {flashMode.current ? "turn off flash mode" : "turn on flash mode"}
+          </button>
+        </div>
+      </div>
+      <div>
         <Webcam
           className="stream"
           ref={webcamRef}
           mirrored={true}
           videoConstraints={videoConstraints}
+          style={{ display: "none" }}
         />
-        <canvas className="stream" ref={canvasRef} width={1280} height={720} />
+        <canvas
+          className="stream"
+          ref={canvasRef}
+          width={videoWidth}
+          height={videoHeight}
+        />
       </div>
     </>
   );
@@ -191,34 +280,59 @@ function ModelTrainer() {
   const [cameraActive, setCameraActive] = useState(false);
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
+  const [trainLabel, setTrainLabel] = useState(null);
   let camera;
 
   const toggleCamera = () => {
-    const video = webcamRef.current?.video;
-    if (cameraActive && video) {
-      video.srcObject.getTracks().forEach((track) => {
-        track.stop();
-      });
-      video.srcObject = null;
+    if (trainLabel) {
+      const video = webcamRef.current?.video;
+      if (cameraActive && video) {
+        video.srcObject.getTracks().forEach((track) => {
+          track.stop();
+        });
+        video.srcObject = null;
+      }
+      setCameraActive(!cameraActive);
+    } else {
+      window.alert("Please enter what sign you want to train for");
     }
+  };
 
-    setCameraActive(!cameraActive);
+  const onSubmit = (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const label = new FormData(form).get("label");
+    setTrainLabel(label.toLocaleLowerCase());
+    form.reset();
   };
 
   return (
-    <>
-      <h1>Train</h1>
-      <button onClick={toggleCamera}>
-        {cameraActive ? "turn off camera" : "turn on camera"}
-      </button>
+    <div
+      style={{ display: "flex", justifyContent: "center", marginTop: "50px" }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          zIndex: 10,
+        }}
+      >
+        <form onSubmit={onSubmit}>
+          <input name="label" type="text" placeholder="label" />
+          <button>Set Label</button>
+        </form>
+        <button onClick={toggleCamera}>
+          {cameraActive ? "turn off camera" : "turn on camera"}
+        </button>
+      </div>
       {cameraActive && (
         <VideoCanvas
           webcamRef={webcamRef}
           canvasRef={canvasRef}
           camera={camera}
+          trainLabel={trainLabel}
         />
       )}
-    </>
+    </div>
   );
 }
 
