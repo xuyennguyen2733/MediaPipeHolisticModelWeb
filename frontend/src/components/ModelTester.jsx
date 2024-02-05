@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "react-query";
 import Webcam from "react-webcam";
 import { Camera } from "@mediapipe/camera_utils";
 import {
@@ -10,21 +11,15 @@ import {
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import "../App.css";
 
-function VideoCanvas({
-  webcamRef,
-  canvasRef,
-  camera,
-  trainLabel,
-  datasetCount,
-}) {
+function VideoCanvas({ webcamRef, canvasRef, camera }) {
   const videoWidth = 1280;
   const videoHeight = 720;
   const [holisticResults, setHolisticResults] = useState(null);
   const sequence = useRef([]);
-  const collecting = useRef(false);
+  const predicting = useRef(false);
   const handDetected = useRef(false);
   const [isSending, setIsSending] = useState(false);
-  const datasetCap = 30;
+  const [result, setPrediction] = useState("");
 
   const videoConstraints = {
     width: videoWidth,
@@ -36,16 +31,15 @@ function VideoCanvas({
     try {
       setIsSending(true);
       for (let i = 0; i < 30; i++) {
-        const response = await fetch("http://127.0.0.1:8000/train", {
+        const response = await fetch("http://127.0.0.1:8000/predict", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             array: sequence.current[i],
-            label: trainLabel,
+            label: "",
             frameNumber: i,
-            setNumber: datasetCount.current,
           }),
         });
         if (!response.ok) {
@@ -53,10 +47,12 @@ function VideoCanvas({
           return false;
         } else {
           console.log("posted training data successfully");
+          if (i == 29) {
+            setPrediction(await response.json());
+          }
         }
       }
       setIsSending(false);
-      datasetCount.current++;
       return true;
     } catch (error) {
       console.error("Error posting data:", error);
@@ -64,15 +60,22 @@ function VideoCanvas({
   };
 
   const toggleOnCollect = () => {
-    collecting.current = true;
+    predicting.current = true;
     sequence.current = [];
     handDetected.current = false;
   };
 
-  const toggleOffCollect = () => {
-    collecting.current = false;
+  const toggleCollect = () => {
+    predicting.current = !predicting.current;
     sequence.current = [];
     handDetected.current = false;
+  };
+
+  const collectInFlashMode = async () => {
+    const succeeded = await sendData();
+    if (succeeded) {
+      toggleOnCollect();
+    }
   };
 
   const onResults = (results) => {
@@ -182,13 +185,13 @@ function VideoCanvas({
 
   let faceLandmarks, poseLandmarks, leftHandLandmarks, rightHandLandmarks;
 
-  if (!handDetected.current && collecting.current) {
+  if (!handDetected.current && predicting.current) {
     handDetected.current =
       holisticResults.leftHandLandmarks || holisticResults.rightHandLandmarks;
   }
 
   if (
-    collecting.current &&
+    predicting.current &&
     holisticResults &&
     handDetected.current &&
     sequence.current.length < 30
@@ -227,7 +230,7 @@ function VideoCanvas({
       ];
       sequence.current = [...sequence.current, newDataSet];
       if (sequence.current.length == 30) {
-        toggleOffCollect();
+        collectInFlashMode();
       }
     });
   }
@@ -243,19 +246,15 @@ function VideoCanvas({
         }}
       >
         <h3>
-          <div>Training for sign: {trainLabel}</div>
-          <div>Number Dataset Sent: {datasetCount.current}</div>
           <div>Frame Count: {sequence.current.length}</div>
+          <div>Prediction: {result.prediction}</div>
         </h3>
         <div
           className={isSending ? "disabled" : ""}
           style={{ display: "flex", flexDirection: "column" }}
         >
-          <button id="send-data-btn" onClick={sendData}>
-            send
-          </button>
-          <button onClick={toggleOnCollect}>
-            {collecting.current ? "restart collect data" : "collect data"}
+          <button onClick={toggleCollect}>
+            {predicting.current ? "stop predicting" : "start predicting"}
           </button>
         </div>
       </div>
@@ -282,36 +281,17 @@ function ModelTester() {
   const [cameraActive, setCameraActive] = useState(false);
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
-  const [trainLabel, setTrainLabel] = useState(null);
-  const datasetCount = useRef(0);
   let camera;
 
   const toggleCamera = () => {
-    if (trainLabel) {
-      const video = webcamRef.current?.video;
-      if (cameraActive && video) {
-        video.srcObject.getTracks().forEach((track) => {
-          track.stop();
-        });
-        video.srcObject = null;
-      }
-      setCameraActive(!cameraActive);
-    } else {
-      window.alert("Please enter what sign you want to train for");
+    const video = webcamRef.current?.video;
+    if (cameraActive && video) {
+      video.srcObject.getTracks().forEach((track) => {
+        track.stop();
+      });
+      video.srcObject = null;
     }
-  };
-
-  const onSubmitLabel = (e) => {
-    if (trainLabel) {
-      e.preventDefault();
-      const form = e.target;
-      const label = new FormData(form).get("label");
-      setTrainLabel(label.toLocaleLowerCase());
-      form.reset();
-      datasetCount.current = 0;
-    } else {
-      window.alert("");
-    }
+    setCameraActive(!cameraActive);
   };
 
   return (
@@ -324,10 +304,6 @@ function ModelTester() {
           zIndex: 10,
         }}
       >
-        <form onSubmit={onSubmitLabel}>
-          <input name="label" type="text" placeholder="label" />
-          <button>Set Label</button>
-        </form>
         <button onClick={toggleCamera}>
           {cameraActive ? "turn off camera" : "turn on camera"}
         </button>
@@ -337,8 +313,6 @@ function ModelTester() {
           webcamRef={webcamRef}
           canvasRef={canvasRef}
           camera={camera}
-          trainLabel={trainLabel}
-          datasetCount={datasetCount}
         />
       )}
     </div>

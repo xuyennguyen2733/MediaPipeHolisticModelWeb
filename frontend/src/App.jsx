@@ -15,13 +15,13 @@ function App() {
           <nav className="nav">
             <Link to="/">home</Link>
             <Link to="/train">Train a model</Link>
-            <Link to="/test">Test your model</Link>
+            <Link to="/predict">Test your model</Link>
           </nav>
           <Routes>
             <Route path="/" element={<h1>home</h1>} />
             <Route path="/dummy" element={<DummyPage />} />
             <Route path="/train" element={<ModelTrainer />} />
-            <Route path="/test" element={<ModelTester />} />
+            <Route path="/predict" element={<ModelTester />} />
             <Route path="*" element={<h1>not found</h1>} />
           </Routes>
         </BrowserRouter>

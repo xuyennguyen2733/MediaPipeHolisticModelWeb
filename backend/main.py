@@ -4,13 +4,22 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend import database as db
 from backend.database import InternalErrorException
-from backend.entities import (Dummy, TrainDataInput, TrainDataResponse, TestDataInput, TestDataResponse)
+from backend.entities import (Dummy, TrainDataInput, TrainDataResponse, PredictDataInput, PredictDataResponse)
+from backend.model import HelloWorldModel
+from backend.sequence_aggregator import SequenceAggregator
 
 app = FastAPI(
   title="ASL Model Trainer",
   description="Web App for training and testing ASL machine learning model",
   version="0.1.0"
 )
+
+model = HelloWorldModel()
+
+
+
+    
+sequence_aggregator = SequenceAggregator()
 
 app.add_middleware(
   CORSMiddleware,
@@ -58,10 +67,14 @@ def get_dummy():
   "/train"
 )
 def create_training_data(array_create: TrainDataInput):
-  return TrainDataResponse(length=db.create_training_file(array_create));
+  return TrainDataResponse(length=db.create_training_file(array_create))
 
 @app.post(
-  "/test"
+  "/predict"
 )
-def create_testing_data(array_create: TestDataInput):
-  return TestDataResponse(label=array_create.label, length=db.create_testing_file(array_create))
+def create_testing_data(array_create: PredictDataInput):
+  full_sequence = sequence_aggregator.add_partial_sequence(array_create.array)
+  if full_sequence is not None:
+    prediction = model.predict(full_sequence)
+    sequence_aggregator.clear_partial_sequence()
+    return PredictDataResponse(prediction=prediction)

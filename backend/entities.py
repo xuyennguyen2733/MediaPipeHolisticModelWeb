@@ -13,10 +13,10 @@ class TrainDataInput(BaseModel):
   frameNumber: int
   setNumber: int
 
-class TestDataInput(BaseModel):
+class PredictDataInput(BaseModel):
   array: list[float]
   label: str
+  frameNumber: int
 
-class TestDataResponse(BaseModel):
-  label: str
-  length: int
+class PredictDataResponse(BaseModel):
+  prediction: str

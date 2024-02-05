@@ -2,7 +2,7 @@ import json
 import numpy as np
 import traceback
 from pathlib import Path
-from backend.entities import TrainDataResponse, TestDataResponse
+from backend.entities import TrainDataResponse, PredictDataResponse
 
 DATA_DIR = "backend/data"
 TEST_DATA_DIR = "backend/test_data"
@@ -25,7 +25,7 @@ def create_testing_file(array_create) -> int:
   file_path = Path(f"{TEST_DATA_DIR}/{array_create.label}/")
   file_path.mkdir(parents=True, exist_ok=True)
   if (file_path.is_dir()):
-    np.save(f"{file_path}/{array_create.label}.npy",np.array(array_create.array))
+    np.save(f"{file_path}/{array_create.frameNumber}.npy",np.array(array_create.array))
     return len(array_create.array)
   
   raise InternalErrorException(traceback.print_exc())
