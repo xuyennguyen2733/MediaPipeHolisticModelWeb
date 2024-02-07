@@ -71,7 +71,7 @@ function VideoCanvas({ webcamRef, canvasRef, camera }) {
     handDetected.current = false;
   };
 
-  const collectInFlashMode = async () => {
+  const continueCollect = async () => {
     const succeeded = await sendData();
     if (succeeded) {
       toggleOnCollect();
@@ -230,7 +230,7 @@ function VideoCanvas({ webcamRef, canvasRef, camera }) {
       ];
       sequence.current = [...sequence.current, newDataSet];
       if (sequence.current.length == 30) {
-        collectInFlashMode();
+        continueCollect();
       }
     });
   }
