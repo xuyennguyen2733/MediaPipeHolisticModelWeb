@@ -6,12 +6,12 @@ from keras.utils import to_categorical
 import os
 
 class HelloWorldModel:
-  def __init__(self,model_name="hello_world", signs=['hello', 'thanks', 'name'] ):
+  def __init__(self,model_name="common_signs_1", signs=['hello','learn','name','nice to meet you', 'sorry', 'thanks', 'understand'] ):
     self.signs = np.array(signs)
     self.model = self._build_model()
-    self.data_dir = os.path.join("data")
-    self.model_dir = os.path.join("models")
-    self.model.load_weights(f"{self.model_dir}/{model_name}.keras")
+    self.data_dir = os.path.join("backend","data")
+    self.model_dir = os.path.join("backend","models")
+    self.model.load_weights(os.path.join(self.model_dir,f"{model_name}.keras"))
 
   def _build_model(self):
     model = Sequential()
