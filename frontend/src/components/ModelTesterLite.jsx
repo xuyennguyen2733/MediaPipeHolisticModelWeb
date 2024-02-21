@@ -9,6 +9,7 @@ import {
 } from "@mediapipe/tasks-vision";
 import { FilesetResolver } from "@mediapipe/tasks-text";
 import "./ModelStyles.css";
+import * as tf from "@tensorflow/tfjs";
 
 function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
   const [tick, setTick] = useState(0);
@@ -17,7 +18,7 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
   const [canvasCtx, setCanvasCtx] = useState(null);
   const [videoWidth, setVideoWidth] = useState(1280);
   const [videoHeight, setVideoHeight] = useState(720);
-  const [landmarkSequence, setSequence] = useState([]);
+  const [rawLandmarkSequence, setSequence] = useState([]);
   const [predicting, setPredicting] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -33,36 +34,106 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
     try {
       setIsSending(true);
       let response;
+      let processedLandmarkSequence = [];
+
+      // Input format must be a 15 x 225 array of difference between consecutive landmark arrays
+      // rawLandmarkSequence is a 16 x 225 array of landmark arrays detected in each video frame
       for (let i = 0; i < frameCount - 1; i++) {
-        const nextLandmarks = landmarkSequence[i + 1];
-        const currentLandmarks = landmarkSequence[i];
-        response = await fetch("http://127.0.0.1:8000/predict", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            array: nextLandmarks.map(
-              (nextLandmarkValue, landmarkIndex) =>
-                nextLandmarkValue - currentLandmarks[landmarkIndex]
-            ),
-            label: "",
-            frameNumber: i,
-          }),
-        });
-        if (!response.ok) {
-          console.log("api response not OK");
-          return false;
-        } else {
-          console.log("posted training data successfully");
-        }
+        const nextLandmarks = rawLandmarkSequence[i + 1];
+        const currentLandmarks = rawLandmarkSequence[i];
+        processedLandmarkSequence.push(
+          nextLandmarks.map(
+            (nextLandmarkValue, landmarkIndex) =>
+              nextLandmarkValue - currentLandmarks[landmarkIndex]
+          )
+        );
       }
-      setResult(await response.json());
+
+      const model = await tf.loadLayersModel("assets/model.json");
+      const tensorInput = tf
+        .tensor(processedLandmarkSequence)
+        .reshape([1, 15, 225]);
+      const resultArray = model.predict(tensorInput).arraySync()[0]; // Predict, then convert predictions tensor to a JavaScript array
+      const classLabels = ["!none", "j", "z"];
+      const maxProbabilities = [];
+      const predictedClasses = [];
+
+      // Assumes there are at least 3 class labels to predict from
+      for (let i = 0; i < 3; i++) {
+        const maxProbIndex = resultArray.indexOf(Math.max(...resultArray)); // Find the index of the class with the highest probability
+        const predictedClass = classLabels[maxProbIndex];
+
+        maxProbabilities.push(Math.max(...resultArray));
+        predictedClasses.push(predictedClass);
+
+        resultArray[maxProbIndex] = -1; // set max probability to min so that the next highest probability becomes the highest
+      }
+      setResult({
+        prediction1: predictedClasses[0],
+        score1: maxProbabilities[0],
+        prediction2: predictedClasses[1],
+        score2: maxProbabilities[1],
+        prediction3: predictedClasses[2],
+        score3: maxProbabilities[2],
+      });
+
+      /**
+       * Old prediction method:
+       *    1. Frontend sends single frame landmark arrays to the backend
+       *    2. Backend queues up arrays until it receives 15 arrays of size 225
+       *    3. Backend process the arrays into valid input shape, then feeds it to the model
+       *    4. Backend send back the results of the 3 most likely predictions and their probabilities
+       *
+       * Problems:
+       *    - To complicated
+       *    - Multiple calls to the backend slows down the prediction proccess
+       *    - Traffics could be interrupt causing backend queue to not receive enough data to predict
+       *    - Once data flow is disrupted, backend queue must be reset for the app to run normally again
+       */
+      //for (let i = 0; i < frameCount - 1; i++) {
+      //  const nextLandmarks = rawLandmarkSequence[i + 1];
+      //  const currentLandmarks = rawLandmarkSequence[i];
+      //response = await fetch("http://127.0.0.1:8000/predict", {
+      //  method: "POST",
+      //  headers: {
+      //    "Content-Type": "application/json",
+      //  },
+      //  body: JSON.stringify({
+      //    array: nextLandmarks.map(
+      //      (nextLandmarkValue, landmarkIndex) =>
+      //        nextLandmarkValue - currentLandmarks[landmarkIndex]
+      //    ),
+      //    label: "",
+      //    frameNumber: i,
+      //  }),
+      //});
+      //if (!response.ok) {
+      //  console.log("api response not OK");
+      //  return false;
+      //} else {
+      //  console.log("posted training data successfully");
+      //}
+      //}
+      //setResult(await response.json());
+
+      /**
+       * Since the new method of predicting signs is too fast and returns immediately,
+       * a wait time of 200 ms is set so that the user has time to reset their hand position
+       * before going for the next sign.
+       *
+       * Otherwise, the app will keep trying to predict new signs as long as it still sees the user's hand(s)
+       */
+      await wait(200);
+
       setIsSending(false);
       return true;
     } catch (error) {
       console.error("Error posting data:", error);
     }
+  };
+
+  const wait = async (ms) => {
+    await new Promise((resolve) => setTimeout(resolve, ms));
   };
 
   const toggleOnCollect = () => {
@@ -117,8 +188,7 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
         vision,
         {
           baseOptions: {
-            modelAssetPath:
-              "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
+            modelAssetPath: "assets/alphabet_recognizer.task",
             delegate: "GPU",
           },
           runningMode: "VIDEO",
@@ -209,7 +279,11 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
     }
     canvasCtx.restore();
 
-    if (predicting && handDetected && landmarkSequence.length <= frameCount) {
+    if (
+      predicting &&
+      handDetected &&
+      rawLandmarkSequence.length <= frameCount
+    ) {
       //Promise.resolve().then(() => {
       //faceLandmarks = holisticResults.faceLandmarks
       //  ? holisticResults.faceLandmarks.flatMap((res) => [res.x, res.y, res.z])
@@ -244,8 +318,8 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
         ...leftHandLandmarks,
         ...rightHandLandmarks,
       ];
-      setSequence([...landmarkSequence, newDataSet]);
-      if (landmarkSequence.length === frameCount) {
+      setSequence([...rawLandmarkSequence, newDataSet]);
+      if (rawLandmarkSequence.length === frameCount) {
         continueCollect();
       }
     }
@@ -254,7 +328,7 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
     const intervalId = setInterval(predictWebcam, intervalDuration);
 
     return () => clearInterval(intervalId); // Clean up the interval on unmount
-  }, [predicting, handDetected, landmarkSequence, cameraActive]);
+  }, [predicting, handDetected, rawLandmarkSequence, cameraActive]);
 
   return (
     <>
@@ -279,9 +353,9 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
           >
             <div>
               Frame Count:{" "}
-              {landmarkSequence.length > frameCount
+              {rawLandmarkSequence.length > frameCount
                 ? frameCount
-                : landmarkSequence.length}
+                : rawLandmarkSequence.length}
             </div>
             <div>
               Prediction 1:{" "}
