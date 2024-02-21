@@ -79,3 +79,9 @@ def create_testing_data(array_create: PredictDataInput):
     predictions = model.predict(full_sequence)
     sequence_aggregator.clear_partial_sequence()
     return PredictDataResponse(prediction1=predictions[0][0],prediction2=predictions[0][1],prediction3=predictions[0][2],score1=predictions[1][0],score2=predictions[1][1],score3=predictions[1][2])
+
+
+@app.get("/clear-queue") 
+def clear_partial_sequence():
+  sequence_aggregator.clear_partial_sequence()
+  return True

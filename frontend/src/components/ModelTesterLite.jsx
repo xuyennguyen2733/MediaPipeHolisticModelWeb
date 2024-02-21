@@ -89,6 +89,20 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
       toggleOnCollect();
     }
   };
+
+  const resetBackendQueue = async () => {
+    response = await fetch("http://127.0.0.1:8000/clear-queue", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    if (!response.ok) {
+      console.log("api response not OK");
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (webcamRef.current) {
       //webcamRef.current.video.videoWidth = videoWidth;
@@ -209,7 +223,6 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
       rightHandLandmarks = Array(21 * 3).fill(0);
       leftHandLandmarks = Array(21 * 3).fill(0);
       if (gestureResults?.landmarks.length > 0) {
-        console.log(gestureResults);
         for (let i = 0; i < gestureResults.landmarks.length; i++) {
           if (gestureResults.handedness[i][0]?.displayName === "Left") {
             rightHandLandmarks = gestureResults.landmarks[i].flatMap((res) => [
@@ -245,37 +258,61 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
 
   return (
     <>
-      <div
-        style={{
-          position: "absolute",
-          display: "flex",
-          justifyContent: "space-between",
-          width: videoWidth,
-          zIndex: 9,
-        }}
-      >
-        <h3 style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-          <div>
-            Frame Count:{" "}
-            {landmarkSequence.length > frameCount
-              ? frameCount
-              : landmarkSequence.length}
-          </div>
-          <div>Prediction 1: {result ? result.prediction1 : ""}</div>
-          <div>Prediction 2: {result ? result.prediction2 : ""}</div>
-          <div>Prediction 3: {result ? result.prediction3 : ""}</div>
-        </h3>
-        <div
-          className={isSending ? "disabled" : ""}
-          style={{ display: "flex", flexDirection: "column" }}
-        >
-          <button onClick={toggleCollect}>
-            {predicting ? "stop predicting" : "start predicting"}
-          </button>
-        </div>
-      </div>
-      <div></div>
       <div className="video-container">
+        <div
+          style={{
+            position: "absolute",
+            display: "flex",
+            justifyContent: "space-between",
+            top: 0,
+            //width: videoWidth,
+            width: "100%",
+            zIndex: 9,
+          }}
+        >
+          <h3
+            style={{
+              padding: 0,
+              margin: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+            }}
+          >
+            <div>
+              Frame Count:{" "}
+              {landmarkSequence.length > frameCount
+                ? frameCount
+                : landmarkSequence.length}
+            </div>
+            <div>
+              Prediction 1:{" "}
+              {result
+                ? `${result.prediction1} (${result.score1.toFixed(2)})`
+                : ""}
+            </div>
+            <div>
+              Prediction 2:{" "}
+              {result
+                ? `${result.prediction2} (${result.score2.toFixed(2)})`
+                : ""}
+            </div>
+            <div>
+              Prediction 3:{" "}
+              {result
+                ? `${result.prediction3} (${result.score3.toFixed(2)})`
+                : ""}
+            </div>
+          </h3>
+          <div
+            className={isSending ? "disabled" : ""}
+            style={{ display: "flex", flexDirection: "column" }}
+          >
+            <button onClick={toggleCollect}>
+              {predicting ? "stop predicting" : "start predicting"}
+            </button>
+            <button onClick={resetBackendQueue}>Reset</button>
+          </div>
+        </div>
+        <div></div>
         <Webcam
           width={videoWidth * 0.8}
           height={videoHeight * 0.8}
