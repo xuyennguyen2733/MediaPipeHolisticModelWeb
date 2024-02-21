@@ -129,10 +129,10 @@ function VideoCanvas({
 
     canvasCtx.globalCompositeOperation = "source-over";
 
-    drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {
-      color: "lightgrey",
-      lineWidth: 1,
-    });
+    //drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {
+    //  color: "lightgrey",
+    //  lineWidth: 1,
+    //});
 
     drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {
       color: "yellowgreen",
@@ -215,9 +215,9 @@ function VideoCanvas({
     sequence.current.length < 30
   ) {
     Promise.resolve().then(() => {
-      faceLandmarks = holisticResults.faceLandmarks
-        ? holisticResults.faceLandmarks.flatMap((res) => [res.x, res.y, res.z])
-        : Array(478 * 3).fill(0);
+      //faceLandmarks = holisticResults.faceLandmarks
+      //  ? holisticResults.faceLandmarks.flatMap((res) => [res.x, res.y, res.z])
+      //  : Array(478 * 3).fill(0);
       poseLandmarks = holisticResults.poseLandmarks
         ? holisticResults.poseLandmarks.flatMap((res) => [
             res.x,
@@ -242,7 +242,7 @@ function VideoCanvas({
         : Array(21 * 3).fill(0);
       const newDataSet = [
         ...poseLandmarks,
-        ...faceLandmarks,
+        //...faceLandmarks,
         ...leftHandLandmarks,
         ...rightHandLandmarks,
       ];
@@ -315,7 +315,6 @@ function ModelTrainer() {
   const [trainLabel, setTrainLabel] = useState(null);
   const datasetCount = useRef(0);
   let camera;
-
   const toggleCamera = () => {
     if (trainLabel) {
       const video = webcamRef.current?.video;
@@ -330,7 +329,6 @@ function ModelTrainer() {
       window.alert("Please enter what sign you want to train for");
     }
   };
-
   const onSubmitLabel = (e) => {
     e.preventDefault();
     const form = e.target;
@@ -339,7 +337,6 @@ function ModelTrainer() {
     form.reset();
     datasetCount.current = 0;
   };
-
   return (
     <div
       style={{ display: "flex", justifyContent: "center", marginTop: "50px" }}

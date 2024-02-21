@@ -19,4 +19,9 @@ class PredictDataInput(BaseModel):
   frameNumber: int
 
 class PredictDataResponse(BaseModel):
-  prediction: str
+  prediction1: str
+  score1: float
+  prediction2: str
+  score2: float
+  prediction3: str
+  score3: float

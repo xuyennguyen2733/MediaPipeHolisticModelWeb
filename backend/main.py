@@ -19,7 +19,7 @@ model = HelloWorldModel()
 
 
     
-sequence_aggregator = SequenceAggregator()
+sequence_aggregator = SequenceAggregator(15)
 
 app.add_middleware(
   CORSMiddleware,
@@ -69,12 +69,13 @@ def get_dummy():
 def create_training_data(array_create: TrainDataInput):
   return TrainDataResponse(length=db.create_training_file(array_create))
 
+
 @app.post(
   "/predict"
 )
 def create_testing_data(array_create: PredictDataInput):
   full_sequence = sequence_aggregator.add_partial_sequence(array_create.array)
   if full_sequence is not None:
-    prediction = model.predict(full_sequence)
+    predictions = model.predict(full_sequence)
     sequence_aggregator.clear_partial_sequence()
-    return PredictDataResponse(prediction=prediction)
+    return PredictDataResponse(prediction1=predictions[0][0],prediction2=predictions[0][1],prediction3=predictions[0][2],score1=predictions[1][0],score2=predictions[1][1],score3=predictions[1][2])

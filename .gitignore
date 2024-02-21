@@ -51,3 +51,8 @@ db.sqlite3
 
 # Ignore .DS_Store files on macOS
 .DS_Store
+
+# Ignore all training data
+**/data/*
+*.npy
+backend/data/*

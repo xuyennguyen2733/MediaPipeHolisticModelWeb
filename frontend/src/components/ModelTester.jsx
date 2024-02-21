@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import Webcam from "react-webcam";
 import { Camera } from "@mediapipe/camera_utils";
+import * as tf from "@tensorflow/tfjs";
 import {
   FACEMESH_TESSELATION,
   POSE_CONNECTIONS,
@@ -20,6 +21,7 @@ function VideoCanvas({ webcamRef, canvasRef, camera }) {
   const handDetected = useRef(false);
   const [isSending, setIsSending] = useState(false);
   const [result, setPrediction] = useState("");
+  const [frameCount, setFrameCount] = useState(0);
 
   const videoConstraints = {
     width: videoWidth,
@@ -52,6 +54,9 @@ function VideoCanvas({ webcamRef, canvasRef, camera }) {
           }
         }
       }
+      //const model = await tf.loadLayersModel("../assets/model.json");
+      //const prediction = model.predit(sequence.current);
+      //setPrediction(prediction);
       setIsSending(false);
       return true;
     } catch (error) {
@@ -111,10 +116,10 @@ function VideoCanvas({ webcamRef, canvasRef, camera }) {
 
     canvasCtx.globalCompositeOperation = "source-over";
 
-    drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {
-      color: "lightgrey",
-      lineWidth: 1,
-    });
+    //drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {
+    //  color: "lightgrey",
+    //  lineWidth: 1,
+    //});
 
     drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {
       color: "yellowgreen",
@@ -146,6 +151,7 @@ function VideoCanvas({ webcamRef, canvasRef, camera }) {
       lineWidth: 2,
     });
 
+    //console.log("frame count", frameCount, "pose", results.poseLandmarks);
     canvasCtx.restore();
   };
 
@@ -183,57 +189,60 @@ function VideoCanvas({ webcamRef, canvasRef, camera }) {
     }
   }, []);
 
-  let faceLandmarks, poseLandmarks, leftHandLandmarks, rightHandLandmarks;
+  useEffect(() => {
+    let faceLandmarks, poseLandmarks, leftHandLandmarks, rightHandLandmarks;
 
-  if (!handDetected.current && predicting.current) {
-    handDetected.current =
-      holisticResults.leftHandLandmarks || holisticResults.rightHandLandmarks;
-  }
+    if (!handDetected.current && predicting.current) {
+      handDetected.current =
+        holisticResults.leftHandLandmarks || holisticResults.rightHandLandmarks;
+    }
 
-  if (
-    predicting.current &&
-    holisticResults &&
-    handDetected.current &&
-    sequence.current.length < 30
-  ) {
-    Promise.resolve().then(() => {
-      faceLandmarks = holisticResults.faceLandmarks
-        ? holisticResults.faceLandmarks.flatMap((res) => [res.x, res.y, res.z])
-        : Array(478 * 3).fill(0);
-      poseLandmarks = holisticResults.poseLandmarks
-        ? holisticResults.poseLandmarks.flatMap((res) => [
-            res.x,
-            res.y,
-            res.z,
-            res.visibility,
-          ])
-        : Array(33 * 4).fill(0);
-      leftHandLandmarks = holisticResults.leftHandLandmarks
-        ? holisticResults.leftHandLandmarks.flatMap((res) => [
-            res.x,
-            res.y,
-            res.z,
-          ])
-        : Array(21 * 3).fill(0);
-      rightHandLandmarks = holisticResults.rightHandLandmarks
-        ? holisticResults.rightHandLandmarks.flatMap((res) => [
-            res.x,
-            res.y,
-            res.z,
-          ])
-        : Array(21 * 3).fill(0);
-      const newDataSet = [
-        ...poseLandmarks,
-        ...faceLandmarks,
-        ...leftHandLandmarks,
-        ...rightHandLandmarks,
-      ];
-      sequence.current = [...sequence.current, newDataSet];
-      if (sequence.current.length == 30) {
-        continueCollect();
-      }
-    });
-  }
+    if (
+      predicting.current &&
+      holisticResults &&
+      handDetected.current &&
+      sequence.current.length < 30
+    ) {
+      Promise.resolve().then(() => {
+        //faceLandmarks = holisticResults.faceLandmarks
+        //  ? holisticResults.faceLandmarks.flatMap((res) => [res.x, res.y, res.z])
+        //  : Array(478 * 3).fill(0);
+        poseLandmarks = holisticResults.poseLandmarks
+          ? holisticResults.poseLandmarks.flatMap((res) => [
+              res.x,
+              res.y,
+              res.z,
+              res.visibility,
+            ])
+          : Array(33 * 4).fill(0);
+        leftHandLandmarks = holisticResults.leftHandLandmarks
+          ? holisticResults.leftHandLandmarks.flatMap((res) => [
+              res.x,
+              res.y,
+              res.z,
+            ])
+          : Array(21 * 3).fill(0);
+        rightHandLandmarks = holisticResults.rightHandLandmarks
+          ? holisticResults.rightHandLandmarks.flatMap((res) => [
+              res.x,
+              res.y,
+              res.z,
+            ])
+          : Array(21 * 3).fill(0);
+        const newDataSet = [
+          ...poseLandmarks,
+          //...faceLandmarks,
+          ...leftHandLandmarks,
+          ...rightHandLandmarks,
+        ];
+        sequence.current = [...sequence.current, newDataSet];
+        if (sequence.current.length == 30) {
+          continueCollect();
+        }
+        setFrameCount(frameCount + 1);
+      });
+    }
+  }, [holisticResults]);
 
   return (
     <>

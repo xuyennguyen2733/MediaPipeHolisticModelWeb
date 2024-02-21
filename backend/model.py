@@ -1,21 +1,30 @@
 import numpy as np
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.layers import LSTM, Dense
 from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
 import os
 
+sign_set_1 = ['hello','learn','name','forget', 'sorry', 'thanks', 'understand']
+alphabet_set = ['!none', 'j', 'z']
+
 class HelloWorldModel:
-  def __init__(self,model_name="common_signs_1", signs=['hello','learn','name','nice to meet you', 'sorry', 'thanks', 'understand'] ):
+  def __init__(self,model_name="alphabet_motion_classifier_diff", signs=alphabet_set):
     self.signs = np.array(signs)
     self.model = self._build_model()
     self.data_dir = os.path.join("backend","data")
     self.model_dir = os.path.join("backend","models")
-    self.model.load_weights(os.path.join(self.model_dir,f"{model_name}.keras"))
+    self.model = self._load_model(os.path.join(self.model_dir,f"{model_name}.keras"))
+
+  def _load_model(self, model_path):
+    model = load_model(model_path)
+    model.compile(optimizer='Adam', loss='categorical_crossentropy', metrics=['categorical_accuracy'])
+    return model
+     
 
   def _build_model(self):
     model = Sequential()
-    model.add(LSTM(64, return_sequences=True, activation='relu', input_shape=(30,1692))) # 30 frames, 1692 keypoints
+    model.add(LSTM(64, return_sequences=True, activation='relu', input_shape=(15,225))) # 30 frames, 1692 keypoints
     model.add(LSTM(128, return_sequences=True, activation='relu'))
     model.add(LSTM(64, return_sequences=False, activation='relu'))
     model.add(Dense(64, activation='relu'))
@@ -61,7 +70,15 @@ class HelloWorldModel:
     sequence = []
     sequence.append(array)
     res = self.model.predict(np.expand_dims(array, axis=0))[0]
-    return self.signs[np.argmax(res)]
+    prediction1 = self.signs[np.argmax(res)]
+    score1 = res[np.argmax(res)]
+    res[np.argmax(res)] = -1
+    prediction2 = self.signs[np.argmax(res)]
+    score2 = res[np.argmax(res)]
+    res[np.argmax(res)] = -1
+    prediction3 = self.signs[np.argmax(res)]
+    score3=res[np.argmax(res)]
+    return ([prediction1,prediction2,prediction3],[score1,score2,score3])
   
   def set_model(self, num_labels, model_name):
     file_path = f"{self.model_dir}/{model_name}.keras"
@@ -73,12 +90,7 @@ class HelloWorldModel:
 
     raise Exception("The model doesn't exist!")
 
-  def _load_data(self):
-    # Thirty videos worth of data
-    no_sequences = 30
-
-    # Videos are going to be 30 frames in length
-    sequence_length = 30
+  def _load_data(self, no_sequences=30, seuqnce_length=30):
 
     for sign in self.signs:
         for sequence in range(no_sequences):
