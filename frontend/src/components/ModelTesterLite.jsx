@@ -1,6 +1,4 @@
-import { useQuery } from "react-query";
 import { useState, useEffect, useRef } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
 import {
   GestureRecognizer,
@@ -232,8 +230,8 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
     // Drawing pose landmarks
     if (poseResults?.landmarks.length !== 0) {
       let connectorColor = "#408080";
+      let landmarkColor = "#8F4F4F";
       for (let i = 0; i < poseResults.landmarks.length; i++) {
-        let landmarkColor = "#8F4F4F";
         drawingUtils.drawConnectors(
           poseResults.landmarks[i],
           PoseLandmarker.POSE_CONNECTIONS,

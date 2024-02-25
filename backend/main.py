@@ -16,9 +16,6 @@ app = FastAPI(
 
 model = HelloWorldModel()
 
-
-
-    
 sequence_aggregator = SequenceAggregator(15)
 
 app.add_middleware(
