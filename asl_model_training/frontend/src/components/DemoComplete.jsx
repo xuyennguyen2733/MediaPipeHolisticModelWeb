@@ -1,51 +1,66 @@
-import { useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
-import { HandLandmarker, DrawingUtils } from "@mediapipe/tasks-vision";
-import { FilesetResolver } from "@mediapipe/tasks-vision";
+import { useRef, useState, useEffect } from "react";
+import { GestureRecognizer, DrawingUtils } from "@mediapipe/tasks-vision";
+import { FilesetResolver } from "@mediapipe/tasks-text";
 import "./ModelStyles.css";
 
 function Demo() {
   /** DECLARE AND/OR INITIALIZE HOOKS */
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
-  const handLandmarker = useRef(null);
-  const [videoConstraints, setVideoContraints] = useState({
-    aspectRatio: 16 / 9,
-  });
+  const gestureRecognizer = useRef(null);
   const [frameInvoker, setFrameInvoker] = useState(false);
   const [canvasCtx, setCanvasCtx] = useState(null);
+  const [configurationOptions, setConfigurationOptions] = useState({
+    baseOptions: {
+      modelAssetPath: "assets/alphabet_recognizer.task",
+    },
+    runningMode: "VIDEO",
+    numHands: 2,
+  });
 
   /** INITIALIZE FUNCTIONS */
+  const createGestureRecognizer = async () => {
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+    );
+    gestureRecognizer.current = await GestureRecognizer.createFromOptions(
+      vision,
+      configurationOptions
+    );
+  };
 
-  const detectHands = () => {
-    if (webcamRef.current && handLandmarker.current) {
+  const recognizeHands = () => {
+    if (webcamRef.current && gestureRecognizer.current) {
       const video = webcamRef.current.video;
-      const results = handLandmarker.current.detectForVideo(
+      const results = gestureRecognizer.current.recognizeForVideo(
         video,
         performance.now()
       );
-      canvasCtx?.save();
-      canvasCtx.clearRect(0, 0, 1280, 720); // x coord of top left corner, y coord of top left corner, canvas width, canvas height
-      const drawingUtils = new DrawingUtils(canvasCtx);
 
-      if (results?.landmarks.length !== 0) {
+      if (results.landmarks?.length !== 0 && canvasRef.current) {
+        const drawingUtils = new DrawingUtils(canvasCtx);
+
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, 1280, 720);
+
         for (let i = 0; i < results.landmarks.length; i++) {
-          // draw connectors
+          drawingUtils.drawLandmarks(results.landmarks[i], {
+            lineWidth: 3,
+            color: "red",
+          });
+
           drawingUtils.drawConnectors(
             results.landmarks[i],
-            HandLandmarker.HAND_CONNECTIONS,
+            GestureRecognizer.HAND_CONNECTIONS,
             {
+              lineWidth: 1,
               color: "green",
-              lineWidth: 3,
             }
           );
-
-          // draw joints
-          drawingUtils.drawLandmarks(results.landmarks[i], {
-            color: "red",
-            lineWidth: 1,
-          });
         }
+
+        canvasCtx.restore();
       }
     }
     setFrameInvoker(!frameInvoker);
@@ -53,41 +68,20 @@ function Demo() {
 
   /** IMPLEMENT FUNCTIONALITIES */
   useEffect(() => {
-    const createHandLandmarker = async () => {
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-      );
-
-      const configurationOptions = {
-        baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-        },
-        runningMode: "VIDEO",
-        numHands: 2,
-      };
-
-      handLandmarker.current = await HandLandmarker.createFromOptions(
-        vision,
-        configurationOptions
-      );
-    };
-    createHandLandmarker();
+    createGestureRecognizer();
     setCanvasCtx(canvasRef.current?.getContext("2d"));
   }, []);
 
-  window.requestAnimationFrame(detectHands);
-
-  //});
+  window.requestAnimationFrame(recognizeHands);
 
   return (
     <div className="video-container">
       <Webcam
+        mirrored={true}
         ref={webcamRef}
+        videoConstraints={{ aspectRatio: 16 / 9 }}
         width={1280}
         height={720}
-        videoConstraints={videoConstraints}
-        mirrored={true}
       />
       <canvas
         className="canvas"
