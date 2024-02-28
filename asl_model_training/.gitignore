@@ -56,3 +56,6 @@ db.sqlite3
 **/data/*
 *.npy
 backend/data/*
+
+MP_Data/*
+Logs/*
