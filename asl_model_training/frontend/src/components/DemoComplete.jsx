@@ -13,7 +13,8 @@ function Demo() {
   const [canvasCtx, setCanvasCtx] = useState(null);
   const [configurationOptions, setConfigurationOptions] = useState({
     baseOptions: {
-      modelAssetPath: "assets/alphabet_recognizer.task",
+      modelAssetPath: "/assets/alphabet_recognizer.task",
+      delegate: "GPU",
     },
     runningMode: "VIDEO",
     numHands: 2,
@@ -75,13 +76,17 @@ function Demo() {
   window.requestAnimationFrame(recognizeHands);
 
   return (
-    <div className="video-container">
+    <div
+      className="video-container"
+      style={{ position: "relative", width: "50%", overflow: "hidden" }}
+    >
       <Webcam
         mirrored={true}
         ref={webcamRef}
         videoConstraints={{ aspectRatio: 16 / 9 }}
         width={1280}
         height={720}
+        style={{ width: "200%" }}
       />
       <canvas
         className="canvas"
