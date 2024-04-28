@@ -14,6 +14,8 @@ function VideoCanvas({
   webcamRef,
   canvasRef,
   trainLabel,
+  startingPosition,
+  requiresPose,
   datasetCount,
   cameraActive,
 }) {
@@ -25,12 +27,13 @@ function VideoCanvas({
   const [videoHeight, setVideoHeight] = useState(720);
   const [landmarkSequence, setLandmarkSequence] = useState([]);
   const [collecting, setCollecting] = useState(false);
-  const [handDetected, setHandDetected] = useState(false);
+  const [startingPositionDetected, setStartingPositionDetected] =
+    useState(false);
   const [flashMode, setFlashMode] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
   const [frameCount, setFrameCount] = useState(16);
-  const [datapointCount, setDatapoinCount] = useState(100);
+  const [datapointCount, setDatapoinCount] = useState(30);
   const [intervalDuration, setIntervalDuration] = useState(30);
   const [videoConstraints, setVideoContraints] = useState({
     //width: videoWidth,
@@ -43,16 +46,18 @@ function VideoCanvas({
       for (let i = 0; i < frameCount - 1; i++) {
         const nextLandmarks = landmarkSequence[i + 1];
         const currentLandmarks = landmarkSequence[i];
+        const processedLandmarks = nextLandmarks.map(
+          (nextLandmarkValue, landmarkIndex) =>
+            nextLandmarkValue - currentLandmarks[landmarkIndex]
+        );
         const response = await fetch("http://127.0.0.1:8000/train", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            array: nextLandmarks.map(
-              (nextLandmarkValue, landmarkIndex) =>
-                nextLandmarkValue - currentLandmarks[landmarkIndex]
-            ),
+            //array: processedLandmarks,
+            array: currentLandmarks,
             label: trainLabel,
             frameNumber: i,
             setNumber: datasetCount.current,
@@ -76,13 +81,13 @@ function VideoCanvas({
   const toggleOnCollect = () => {
     setCollecting(true);
     setLandmarkSequence([]);
-    setHandDetected(false);
+    setStartingPositionDetected(false);
   };
 
   const toggleOffCollect = () => {
     setCollecting(false);
     setLandmarkSequence([]);
-    setHandDetected(false);
+    setStartingPositionDetected(false);
   };
 
   const toggleFlashMode = () => {
@@ -118,8 +123,7 @@ function VideoCanvas({
         vision,
         {
           baseOptions: {
-            modelAssetPath:
-              "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
+            modelAssetPath: "/assets/alphabet_recognizer.task",
             delegate: "GPU",
           },
           runningMode: "VIDEO",
@@ -154,14 +158,19 @@ function VideoCanvas({
         video,
         startTimeInMs
       );
-      poseResults = poseLandmarker.current.detectForVideo(video, startTimeInMs);
+      if (requiresPose) {
+        poseResults = poseLandmarker.current.detectForVideo(
+          video,
+          startTimeInMs
+        );
+      }
     }
     canvasCtx?.save();
     canvasCtx.clearRect(0, 0, videoWidth, videoHeight);
     const drawingUtils = new DrawingUtils(canvasCtx);
 
     // Drawing pose landmarks
-    if (poseResults?.landmarks.length !== 0) {
+    if (poseResults?.landmarks.length > 0) {
       let connectorColor = "#408080";
       let landmarkColor = "#8F4F4F";
       for (let i = 0; i < poseResults.landmarks.length; i++) {
@@ -170,29 +179,36 @@ function VideoCanvas({
           PoseLandmarker.POSE_CONNECTIONS,
           {
             color: connectorColor,
-            lineWidth: 3,
+            lineWidth: 2,
           }
         );
         drawingUtils.drawLandmarks(poseResults.landmarks[i], {
           color: landmarkColor,
           lineWidth: 1,
+          radius: 3,
         });
       }
     }
 
-    if (!handDetected && collecting) {
-      setHandDetected(gestureResults.landmarks.length !== 0);
-    }
     // Drawing hand landmarks
-    if (gestureResults.landmarks.length !== 0) {
-      let connectorColor = "#808080";
-      let landmarkColor = "#4F4F4F";
-
+    if (gestureResults.landmarks.length > 0) {
       // draw landmarks and connectors
       for (let i = 0; i < gestureResults.landmarks.length; i++) {
+        let connectorColor = "#808080";
+        let landmarkColor = "#4F4F4F";
         const landmarks = gestureResults.landmarks[i];
         const categoryName = gestureResults.gestures[i][0].categoryName;
 
+        if (!startingPositionDetected && collecting) {
+          setStartingPositionDetected(
+            categoryName.toLocaleLowerCase() === startingPosition
+          );
+        }
+
+        if (categoryName.toLocaleLowerCase() === startingPosition) {
+          connectorColor = "white";
+          landmarkColor = "#8aa0ff";
+        }
         // draw detected landmarks to canvas
         drawingUtils.drawConnectors(
           landmarks,
@@ -205,6 +221,7 @@ function VideoCanvas({
         drawingUtils.drawLandmarks(landmarks, {
           color: landmarkColor,
           lineWidth: 1,
+          radius: 3,
         });
       }
     }
@@ -212,8 +229,7 @@ function VideoCanvas({
 
     if (
       collecting &&
-      (gestureResults || poseResults) &&
-      handDetected &&
+      startingPositionDetected &&
       landmarkSequence.length <= frameCount
     ) {
       //Promise.resolve().then(() => {
@@ -263,7 +279,13 @@ function VideoCanvas({
     const intervalId = setInterval(predictWebcam, intervalDuration);
 
     return () => clearInterval(intervalId); // Clean up the interval on unmount
-  }, [collecting, handDetected, landmarkSequence, flashMode, cameraActive]);
+  }, [
+    collecting,
+    startingPositionDetected,
+    landmarkSequence,
+    flashMode,
+    cameraActive,
+  ]);
 
   return (
     <>
@@ -279,6 +301,7 @@ function VideoCanvas({
         <h3 style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
           <div>Training for sign: {trainLabel}</div>
           <div>Number Dataset Sent: {datasetCount.current}</div>
+          <div>Starting position: {startingPosition}</div>
           <div>
             Frame Count:{" "}
             {landmarkSequence.length > frameCount
@@ -327,11 +350,13 @@ function ModelTrainerLite() {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const [trainLabel, setTrainLabel] = useState(null);
+  const [startingPosition, setStartingPosition] = useState(null);
+  const [requiresPose, setRequiresPose] = useState(false);
   const datasetCount = useRef(0);
   let camera;
 
   const toggleCamera = () => {
-    if (trainLabel) {
+    if (trainLabel && startingPosition) {
       const video = webcamRef.current?.video;
       if (cameraActive && video) {
         video.srcObject.getTracks().forEach((track) => {
@@ -351,7 +376,16 @@ function ModelTrainerLite() {
     const label = new FormData(form).get("label");
     setTrainLabel(label.toLocaleLowerCase());
     form.reset();
+    setStartingPosition(null);
     datasetCount.current = 0;
+  };
+
+  const onSubmitStartingPosition = (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const startingPosition = new FormData(form).get("startingPosition");
+    setStartingPosition(startingPosition.toLocaleLowerCase());
+    form.reset();
   };
 
   return (
@@ -364,19 +398,59 @@ function ModelTrainerLite() {
           zIndex: 10,
         }}
       >
-        <form onSubmit={onSubmitLabel}>
-          <input name="label" type="text" placeholder="label" />
-          <button>Set Label</button>
-        </form>
-        <button onClick={toggleCamera}>
-          {cameraActive ? "turn off camera" : "turn on camera"}
-        </button>
+        <div style={{ display: "flex", justifyContent: "space-around" }}>
+          <form style={{ paddingRight: "15px" }} onSubmit={onSubmitLabel}>
+            <input
+              style={{ width: "5rem" }}
+              name="label"
+              type="text"
+              placeholder="label"
+            />
+            <button>Set Label</button>
+          </form>
+          <form
+            style={{ paddingRight: "15px" }}
+            onSubmit={onSubmitStartingPosition}
+          >
+            <input
+              name="startingPosition"
+              type="text"
+              placeholder="starting position"
+              style={{ width: "7rem" }}
+            />
+            <button>Set Starting Position</button>
+          </form>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              backgroundColor: "rgba(0,0,0,0.5)",
+              padding: "0.5rem",
+              borderRadius: "1rem",
+              marginRight: "15px",
+            }}
+          >
+            <span style={{ paddingRight: "1rem" }}>Pose?</span>
+            <input
+              onChange={() => {
+                setRequiresPose(!requiresPose);
+              }}
+              type="checkbox"
+              id="switch"
+              className="checkbox"
+            />
+            <label htmlFor="switch" className="toggle" />
+          </div>
+          <button onClick={toggleCamera}>{cameraActive ? "off" : "on"}</button>
+        </div>
       </div>
       {cameraActive && (
         <VideoCanvas
           webcamRef={webcamRef}
           canvasRef={canvasRef}
           trainLabel={trainLabel}
+          startingPosition={startingPosition}
+          requiresPose={requiresPose}
           datasetCount={datasetCount}
           cameraActive={cameraActive}
         />

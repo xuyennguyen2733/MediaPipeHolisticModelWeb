@@ -77,7 +77,7 @@ signs = np.array(os.listdir(DATA_DIR))
 num_examples = 30
 
 # Videos are going to be 30 frames in length
-num_frames = 16
+num_frames = 15
 
 #model = Sequential()
 #model.add(LSTM(64, return_sequences=True, activation='relu', input_shape=(30,258))) # 30 frames, 1662 keypoints

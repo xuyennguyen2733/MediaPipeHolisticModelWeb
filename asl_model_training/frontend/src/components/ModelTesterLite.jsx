@@ -18,7 +18,8 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
   const [videoHeight, setVideoHeight] = useState(720);
   const [rawLandmarkSequence, setSequence] = useState([]);
   const [predicting, setPredicting] = useState(false);
-  const [handDetected, setHandDetected] = useState(false);
+  const [startingPositionDetected, setStartingPositionDetected] =
+    useState(false);
   const [isSending, setIsSending] = useState(false);
   const [result, setResult] = useState(null);
   const [frameCount, setFrameCount] = useState(16);
@@ -40,10 +41,11 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
         const nextLandmarks = rawLandmarkSequence[i + 1];
         const currentLandmarks = rawLandmarkSequence[i];
         processedLandmarkSequence.push(
-          nextLandmarks.map(
-            (nextLandmarkValue, landmarkIndex) =>
-              nextLandmarkValue - currentLandmarks[landmarkIndex]
-          )
+          //nextLandmarks.map(
+          //  (nextLandmarkValue, landmarkIndex) =>
+          //    nextLandmarkValue - currentLandmarks[landmarkIndex]
+          //)
+          currentLandmarks
         );
       }
 
@@ -52,7 +54,8 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
         .tensor(processedLandmarkSequence)
         .reshape([1, 15, 225]);
       const resultArray = model.predict(tensorInput).arraySync()[0]; // Predict, then convert predictions tensor to a JavaScript array
-      const classLabels = ["!none", "j", "z"];
+      const classLabels = ["!none", "j", "j!still", "z", "z!still"];
+      console.log("result array", resultArray);
       const maxProbabilities = [];
       const predictedClasses = [];
 
@@ -137,19 +140,19 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
   const toggleOnCollect = () => {
     setPredicting(true);
     setSequence([]);
-    setHandDetected(false);
+    setStartingPositionDetected(false);
   };
 
   const toggleOffCollect = () => {
     setPredicting(false);
     setSequence([]);
-    setHandDetected(false);
+    setStartingPositionDetected(false);
   };
 
   const toggleCollect = () => {
     setPredicting(!predicting);
     setSequence([]);
-    setHandDetected(false);
+    setStartingPositionDetected(false);
   };
 
   const continueCollect = async () => {
@@ -221,14 +224,14 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
         video,
         startTimeInMs
       );
-      poseResults = poseLandmarker.current.detectForVideo(video, startTimeInMs);
+      //poseResults = poseLandmarker.current.detectForVideo(video, startTimeInMs);
     }
     canvasCtx?.save();
     canvasCtx.clearRect(0, 0, videoWidth, videoHeight);
     const drawingUtils = new DrawingUtils(canvasCtx);
 
     // Drawing pose landmarks
-    if (poseResults?.landmarks.length !== 0) {
+    if (poseResults?.landmarks.length > 0) {
       let connectorColor = "#408080";
       let landmarkColor = "#8F4F4F";
       for (let i = 0; i < poseResults.landmarks.length; i++) {
@@ -247,18 +250,29 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
       }
     }
 
-    if (!handDetected && predicting) {
-      setHandDetected(gestureResults.landmarks.length !== 0);
-    }
     // Drawing hand landmarks
-    if (gestureResults.landmarks.length !== 0) {
-      let connectorColor = "#808080";
-      let landmarkColor = "#4F4F4F";
-
+    if (gestureResults.landmarks.length > 0) {
       // draw landmarks and connectors
       for (let i = 0; i < gestureResults.landmarks.length; i++) {
+        let connectorColor = "#808080";
+        let landmarkColor = "#4F4F4F";
         const landmarks = gestureResults.landmarks[i];
         const categoryName = gestureResults.gestures[i][0].categoryName;
+
+        if (!startingPositionDetected && predicting) {
+          setStartingPositionDetected(
+            categoryName.toLocaleLowerCase() === "d" ||
+              categoryName.toLocaleLowerCase() === "i"
+          );
+        }
+
+        if (
+          categoryName.toLocaleLowerCase() === "d" ||
+          categoryName.toLocaleLowerCase() === "i"
+        ) {
+          connectorColor = "white";
+          landmarkColor = "#8aa0ff";
+        }
 
         // draw detected landmarks to canvas
         drawingUtils.drawConnectors(
@@ -279,7 +293,7 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
 
     if (
       predicting &&
-      handDetected &&
+      startingPositionDetected &&
       rawLandmarkSequence.length <= frameCount
     ) {
       //Promise.resolve().then(() => {
@@ -326,7 +340,7 @@ function VideoCanvas({ webcamRef, canvasRef, cameraActive }) {
     const intervalId = setInterval(predictWebcam, intervalDuration);
 
     return () => clearInterval(intervalId); // Clean up the interval on unmount
-  }, [predicting, handDetected, rawLandmarkSequence, cameraActive]);
+  }, [predicting, startingPositionDetected, rawLandmarkSequence, cameraActive]);
 
   return (
     <>
