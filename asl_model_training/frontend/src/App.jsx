@@ -9,6 +9,7 @@ import DemoComplete from "./components/DemoComplete";
 import DummyPage from "./components/DummyPage";
 import "./App.css";
 import HalfVideo from "./components/HalfVideo";
+import NewModelTrainerLite from "./components/NewModelTrainerLite";
 
 function App() {
   const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ function App() {
             <Link to="/demo-complete">Demo Complete</Link>
             {/*<Link to="/train">Train a model</Link>*/}
             <Link to="/train-lite">Train a model (lite)</Link>
+            <Link to="/train-lite-new">Train a model (new-lite)</Link>
             <Link to="/test-lite">Test a model (lite)</Link>
             <Link to="/half">Half video</Link>
             {/*<Link to="/test">Test your model</Link>*/}
@@ -34,6 +36,7 @@ function App() {
             <Route path="/dummy" element={<DummyPage />} />
             {/*<Route path="/train" element={<ModelTrainer />} />*/}
             <Route path="/train-lite" element={<ModelTrainerLite />} />
+            <Route path="/train-lite-new" element={<NewModelTrainerLite />} />
             <Route path="/test-lite" element={<ModelTesterLite />} />
             <Route path="/half" element={<HalfVideo />} />
             {/*<Route path="/test" element={<ModelTester />} />*/}

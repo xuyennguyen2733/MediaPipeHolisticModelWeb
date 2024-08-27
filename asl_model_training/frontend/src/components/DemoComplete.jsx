@@ -12,6 +12,7 @@ function Demo() {
   const gestureRecognizer = useRef(null);
   const [frameInvoker, setFrameInvoker] = useState(false);
   const [canvasCtx, setCanvasCtx] = useState(null);
+  const [animationFrameId, setAnimationFrameId] = useState(null);
   const [configurationOptions, setConfigurationOptions] = useState({
     baseOptions: {
       modelAssetPath: "assets/alphabet_recognizer.task",
@@ -80,7 +81,7 @@ function Demo() {
     setCanvasCtx(canvasRef.current?.getContext("2d"));
   }, []);
 
-  window.requestAnimationFrame(recognizeHands);
+  window.requestAnimationFrame(predictWebcam);
 
   return (
     <>

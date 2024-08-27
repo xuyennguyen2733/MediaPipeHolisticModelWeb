@@ -32,7 +32,7 @@ function VideoCanvas({
   const [flashMode, setFlashMode] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
-  const [frameCount, setFrameCount] = useState(16);
+  const [frameCount, setFrameCount] = useState(61);
   const [datapointCount, setDatapoinCount] = useState(30);
   const [intervalDuration, setIntervalDuration] = useState(30);
   const [videoConstraints, setVideoContraints] = useState({
@@ -43,7 +43,7 @@ function VideoCanvas({
   const sendData = async () => {
     try {
       setIsSending(true);
-      for (let i = 0; i < frameCount - 1; i++) {
+      for (let i = 0; i < landmarkSequence.length - 1; i++) {
         const nextLandmarks = landmarkSequence[i + 1];
         const currentLandmarks = landmarkSequence[i];
         const processedLandmarks = nextLandmarks.map(
@@ -144,6 +144,14 @@ function VideoCanvas({
 
     setCanvasCtx(canvasRef.current?.getContext("2d"));
   }, []);
+
+  const extractKeyframes = () => {
+    const interval = Math.floor(frameCount / 15);
+    const keyframes = landmarkSequence.filter(
+      (item, index) => index % interval === 0
+    );
+    return keyframes;
+  };
 
   const predictWebcam = () => {
     if (!gestureRecognizer.current || !poseLandmarker.current || !canvasCtx)
@@ -268,6 +276,8 @@ function VideoCanvas({
       ];
       setLandmarkSequence([...landmarkSequence, newDataSet]);
       if (landmarkSequence.length === frameCount) {
+        setCollecting(false);
+        setLandmarkSequence(extractKeyframes());
         if (flashMode) {
           collectInFlashMode();
         }
