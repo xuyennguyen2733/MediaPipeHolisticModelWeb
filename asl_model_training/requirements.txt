@@ -1,0 +1,11 @@
+fastapi==0.108.0
+uvicorn==0.25.0
+pytest==7.4.0
+httpx==0.26.0
+sqlmodel==0.0.14
+numpy==1.26.4
+keras>=2.15.0,<2.16
+scikit-learn==1.4.1.post1
+tensorflow-io-gcs-filesystem==0.31.0
+tensorflow==2.15.0
+pydantic==2.6.2
